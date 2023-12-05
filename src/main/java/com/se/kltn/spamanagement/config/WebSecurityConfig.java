@@ -67,6 +67,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/api/auth/**").permitAll()
                 .antMatchers("/api/admin/**").hasAnyAuthority("ADMIN")
                 .antMatchers("/api/appointment/**").hasAnyAuthority("ADMIN", "EMPLOYEE", "CUSTOMER")
+                .antMatchers("/api/treatment-detail/**").permitAll()
+                .antMatchers("/api/product/**").permitAll()
                 .anyRequest().authenticated()
                 .and().apply(jwtConfigurer);
     }
