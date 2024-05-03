@@ -25,4 +25,5 @@ public class MappingData {
     public static <D, S> List<S> mapListObject(List<D> sources, Class<S> destination) {
         return sources.stream().map(source -> mapObject(source, destination)).collect(Collectors.toList());
     }
+
 }

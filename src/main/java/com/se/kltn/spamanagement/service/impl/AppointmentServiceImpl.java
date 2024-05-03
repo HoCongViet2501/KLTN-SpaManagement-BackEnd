@@ -1,5 +1,6 @@
 package com.se.kltn.spamanagement.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.se.kltn.spamanagement.dto.request.AppointmentRequest;
 import com.se.kltn.spamanagement.dto.response.AppointmentResponse;
 import com.se.kltn.spamanagement.exception.BadRequestException;
@@ -12,18 +13,19 @@ import com.se.kltn.spamanagement.repository.CustomerRepository;
 import com.se.kltn.spamanagement.repository.EmployeeRepository;
 import com.se.kltn.spamanagement.repository.ProductRepository;
 import com.se.kltn.spamanagement.service.AppointmentService;
+import com.se.kltn.spamanagement.utils.JsonConverter;
 import com.se.kltn.spamanagement.utils.MappingData;
 import com.se.kltn.spamanagement.utils.NullUtils;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -43,12 +45,15 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private final ProductRepository productRepository;
 
+    private final KafkaTemplate<String, AppointmentResponse> kafkaTemplate;
+
     @Autowired
-    public AppointmentServiceImpl(AppointmentRepository appointmentRepository, CustomerRepository customerRepository, EmployeeRepository employeeRepository, ProductRepository productRepository) {
+    public AppointmentServiceImpl(AppointmentRepository appointmentRepository, CustomerRepository customerRepository, EmployeeRepository employeeRepository, ProductRepository productRepository, KafkaTemplate<String, AppointmentResponse> kafkaTemplate) {
         this.appointmentRepository = appointmentRepository;
         this.customerRepository = customerRepository;
         this.employeeRepository = employeeRepository;
         this.productRepository = productRepository;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     @Override
@@ -63,31 +68,19 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setCreatedDate(new Date());
         appointment.setUpdatedDate(new Date());
         //
-        checkEmployeeIsBusy(appointmentRequest.getTime(),appointment);
+        checkEmployeeIsBusy(appointmentRequest.getTime(), appointment);
         appointment.setCustomer(this.customerRepository.findById(appointmentRequest.getIdCustomer()).orElseThrow(
                 () -> new ResourceNotFoundException(CUSTOMER_NOT_FOUND)
         ));
         appointment.setProduct(this.productRepository.findById(appointmentRequest.getIdProduct()).orElseThrow(
                 () -> new ResourceNotFoundException(PRODUCT_NOT_FOUND)
         ));
-        Appointment appointmentSaved = this.appointmentRepository.save(appointment);
-        AppointmentResponse appointmentResponse = MappingData.mapObject(appointmentSaved, AppointmentResponse.class);
-        appointmentResponse.setReference(getReference(appointmentSaved));
+        //
+        this.appointmentRepository.save(appointment);
+        AppointmentResponse appointmentResponse = MappingData.mapObject(appointment, AppointmentResponse.class);
+        appointmentResponse.setReference(getReference(appointment));
+        sendAppointmentToBroker(appointmentResponse);
         return appointmentResponse;
-    }
-
-    private void checkEmployeeIsBusy(Date time, Appointment appointment) {
-        time.setHours(time.getHours() -1);
-        System.err.println(time);
-        LocalDateTime startDate = time.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-        time.setHours(time.getHours() +2);
-        System.err.println(time);
-        LocalDateTime endDate = time.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-        List<Employee> employees = this.employeeRepository.findEmployeesNotInAppointmentTime(startDate, endDate);
-        if (employees.isEmpty()) {
-            throw new BadRequestException("All employees are busy");
-        }
-        appointment.setEmployee(employees.get(0));
     }
 
 
@@ -138,21 +131,32 @@ public class AppointmentServiceImpl implements AppointmentService {
         return appointmentResponses;
     }
 
-    private void checkDateBefore(Date date) {
-        if (date != null && date.before(new Date())) {
+    private void checkDateBefore(LocalDateTime date) {
+        if (date != null && date.isBefore(LocalDateTime.now())) {
             throw new BadRequestException("Date request is before now");
         }
     }
 
-    private Date convertDate(Date date) {
-        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-        String strDate = formatter.format(date);
-        try {
-            date = formatter.parse(strDate);
-        } catch (ParseException e) {
-            e.printStackTrace();
+    private void sendAppointmentToBroker(AppointmentResponse appointmentResponse) {
+        this.kafkaTemplate.send("appointment", appointmentResponse);
+    }
+
+    private void checkEmployeeIsBusy(LocalDateTime time, Appointment appointment) {
+        LocalDateTime startDate = time.minusHours(1);
+        LocalDateTime endDate = time.plusHours(2);
+
+        List<Employee> employees = this.employeeRepository.findEmployeesNotInAppointmentTime(startDate, endDate);
+        if (employees.isEmpty()) {
+            throw new BadRequestException("All employees are busy");
         }
-        return date;
+        appointment.setEmployee(employees.get(0));
+    }
+
+
+    private LocalDateTime convertDate(LocalDateTime date) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        String formatDate = date.format(formatter);
+        return LocalDateTime.parse(formatDate, formatter);
     }
 
     private Map<String, String> getReference(Appointment appointmentSaved) {

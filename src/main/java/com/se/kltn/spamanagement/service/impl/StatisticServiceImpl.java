@@ -184,6 +184,7 @@ public class StatisticServiceImpl implements StatisticService {
         Integer totalService = 0;
         Integer totalProduct = 0;
         Integer totalTreatment = 0;
+
         for (Invoice invoice : invoices) {
             List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findInvoiceDetailsByInvoice_Id(invoice.getId());
             for (InvoiceDetail invoiceDetail : invoiceDetails) {

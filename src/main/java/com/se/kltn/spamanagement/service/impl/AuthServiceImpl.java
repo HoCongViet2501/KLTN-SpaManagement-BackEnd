@@ -140,21 +140,26 @@ public class AuthServiceImpl implements AuthService {
             mimeMessageHelper.setTo(email);
             mimeMessageHelper.setFrom(sender);
             mimeMessageHelper.setSubject("Complete Registration!");
-            String content = "Dear [[name]],<br>" +
-                    "Please click the link below to verify your registration:<br>\n" +
-                    "<h3><a href=\"[[URL]]\" target=\"_self\">VERIFY</a></h3>\n" +
-                    "Thank you,<br>\n" +
-                    "VH Spa.";
-
-            String verifyURL = siteUrl + "/api/auth/verify?code=" + accountRegister.getEmailVerificationCode();
-            String message = content.replace("[[name]]", accountRegister.getUsername());
-            message = message.replace("[[URL]]", verifyURL);
+            String message = processMessage(accountRegister, siteUrl);
             mimeMessageHelper.setText(message, true /* isHtml */);
             javaMailSender.send(mimeMailMessage);
         } catch (Exception e) {
             e.printStackTrace();
             throw new MessagingException("Error sending email");
         }
+    }
+
+    private static String processMessage(Account accountRegister, String siteUrl) {
+        String content = "Dear [[name]],<br>" +
+                "Please click the link below to verify your registration:<br>\n" +
+                "<h3><a href=\"[[URL]]\" target=\"_self\">VERIFY</a></h3>\n" +
+                "Thank you,<br>\n" +
+                "VH Spa.";
+
+        String verifyURL = siteUrl + "/api/auth/verify?code=" + accountRegister.getEmailVerificationCode();
+        String message = content.replace("[[name]]", accountRegister.getUsername());
+        message = message.replace("[[URL]]", verifyURL);
+        return message;
     }
 
     private void checkAccountRequest(AccountRequest accountRequest) {

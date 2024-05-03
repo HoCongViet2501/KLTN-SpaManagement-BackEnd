@@ -5,11 +5,9 @@ import com.se.kltn.spamanagement.constants.enums.Status;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
 import javax.validation.constraints.NotNull;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Data
@@ -19,7 +17,7 @@ public class AppointmentRequest {
 
     @NotNull(message = "time is required")
     @JsonFormat(shape=JsonFormat.Shape.STRING, pattern="yyyy-MM-dd HH:mm:ss", timezone = "GMT+7")
-    private Date time;
+    private LocalDateTime time;
 
     private Status status;
 
