@@ -1,6 +1,5 @@
 package com.se.kltn.spamanagement.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.se.kltn.spamanagement.dto.request.AppointmentRequest;
 import com.se.kltn.spamanagement.dto.response.AppointmentResponse;
 import com.se.kltn.spamanagement.exception.BadRequestException;
@@ -13,21 +12,15 @@ import com.se.kltn.spamanagement.repository.CustomerRepository;
 import com.se.kltn.spamanagement.repository.EmployeeRepository;
 import com.se.kltn.spamanagement.repository.ProductRepository;
 import com.se.kltn.spamanagement.service.AppointmentService;
-import com.se.kltn.spamanagement.utils.JsonConverter;
 import com.se.kltn.spamanagement.utils.MappingData;
 import com.se.kltn.spamanagement.utils.NullUtils;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -45,15 +38,13 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private final ProductRepository productRepository;
 
-    private final KafkaTemplate<String, AppointmentResponse> kafkaTemplate;
 
     @Autowired
-    public AppointmentServiceImpl(AppointmentRepository appointmentRepository, CustomerRepository customerRepository, EmployeeRepository employeeRepository, ProductRepository productRepository, KafkaTemplate<String, AppointmentResponse> kafkaTemplate) {
+    public AppointmentServiceImpl(AppointmentRepository appointmentRepository, CustomerRepository customerRepository, EmployeeRepository employeeRepository, ProductRepository productRepository) {
         this.appointmentRepository = appointmentRepository;
         this.customerRepository = customerRepository;
         this.employeeRepository = employeeRepository;
         this.productRepository = productRepository;
-        this.kafkaTemplate = kafkaTemplate;
     }
 
     @Override
@@ -79,7 +70,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         this.appointmentRepository.save(appointment);
         AppointmentResponse appointmentResponse = MappingData.mapObject(appointment, AppointmentResponse.class);
         appointmentResponse.setReference(getReference(appointment));
-        sendAppointmentToBroker(appointmentResponse);
         return appointmentResponse;
     }
 
@@ -135,10 +125,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (date != null && date.isBefore(LocalDateTime.now())) {
             throw new BadRequestException("Date request is before now");
         }
-    }
-
-    private void sendAppointmentToBroker(AppointmentResponse appointmentResponse) {
-        this.kafkaTemplate.send("appointment", appointmentResponse);
     }
 
     private void checkEmployeeIsBusy(LocalDateTime time, Appointment appointment) {

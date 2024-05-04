@@ -1,25 +1,16 @@
 package com.se.kltn.spamanagement.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.se.kltn.spamanagement.dto.request.AppointmentRequest;
-import com.se.kltn.spamanagement.dto.request.SendMailRequest;
-import com.se.kltn.spamanagement.dto.response.AppointmentResponse;
 import com.se.kltn.spamanagement.service.AppointmentService;
-import com.se.kltn.spamanagement.service.EmailService;
 import com.se.kltn.spamanagement.service.EmployeeService;
-import com.se.kltn.spamanagement.utils.JsonConverter;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.text.ParseException;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Date;
 
 @RestController
 @RequestMapping("/api/appointment")
@@ -30,13 +21,11 @@ public class AppointmentController {
 
     private final EmployeeService employeeService;
 
-    private final EmailService emailService;
 
     @Autowired
-    public AppointmentController(AppointmentService appointmentService, EmployeeService employeeService, EmailService emailService) {
+    public AppointmentController(AppointmentService appointmentService, EmployeeService employeeService) {
         this.appointmentService = appointmentService;
         this.employeeService = employeeService;
-        this.emailService = emailService;
     }
 
     @GetMapping
@@ -81,20 +70,4 @@ public class AppointmentController {
         return ResponseEntity.ok().body(this.employeeService.searchEmployeeIsTherapistByText(text));
     }
 
-    @KafkaListener(topics = "appointment", groupId = "spa-management-group-id")
-    public void listen(AppointmentResponse appointmentResponse) {
-        log.info("Received message in group foo: " + appointmentResponse);
-        LocalDateTime localDateTime = LocalDateTime.now();
-        boolean isAlertDate = appointmentResponse.getTime().minusHours(1).isBefore(localDateTime);
-        if (isAlertDate) {
-            log.info("Send message to employee");
-            String customerName = appointmentResponse.getReference().get("customerName");
-            Long customerId = Long.parseLong(appointmentResponse.getReference().get("customerId"));
-            SendMailRequest sendMailRequest = SendMailRequest.builder()
-                    .msgBody("Dear " + customerName + "\n" + "You have an appointment at " + appointmentResponse.getTime())
-                    .subject("Appointment Alert")
-                    .build();
-            emailService.sendSimpleEmail(customerId, sendMailRequest);
-        }
-    }
 }
