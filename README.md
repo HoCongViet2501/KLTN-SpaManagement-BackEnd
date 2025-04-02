@@ -1,17 +1,29 @@
 # KLTN-SpaManagement-BackEnd
 
-//.env
-POSTGRESDB_USER=postgres
+## Introduction
+The KLTN-SpaManagement-BackEnd is a backend service for managing spa operations. This project is primarily written in Java and includes Docker for containerization.
 
-POSTGRESDB_ROOT_PASSWORD=
+## Features
+- User authentication and authorization
+- Appointment scheduling
+- Service management
+- Staff management
+- Reporting and analytics
 
-POSTGRESDB_DATABASE=spaManagement
+## Technologies Used
+- Java
+- Kafka
+- SMTP
+- REST
+- Dockerfile
 
-POSTGRESDB_LOCAL_PORT=5433
+## Prerequisites
+- Java Development Kit (JDK) 8 or higher
+- Docker (optional, for containerization)
 
-POSTGRESDB_DOCKER_PORT=5432
+## Installation
 
-SPRING_LOCAL_PORT=8080
-
-SPRING_DOCKER_PORT=8080
-//
+### Clone the Repository
+```bash
+git clone https://github.com/HoCongViet2501/KLTN-SpaManagement-BackEnd.git
+cd KLTN-SpaManagement-BackEnd
